@@ -1,7 +1,7 @@
 <head>
   <style>
     body {
-      padding: 50px;
+      padding: 50px 50px;
       font-size: 18px;
     }
     #main {
@@ -12,394 +12,112 @@
       flex: 0px 3 3;
     }
     #controls {
+      margin-top: 20px;
       flex: 0px 1 1;
     }
     input {
       display: block;
       width: 100%;
-      margin: 10px 0;
     }
     button {
       width: 80px;
     }
+    .colorStep {
+      display: inline-block;
+      height: 80px;
+      width: 2px;
+    }
+    .colorPicker {
+      display: flex;
+      margin: 20px 0;
+    }
+    .colorPicker > .lambdaInput {
+      flex: 50px 0 0;
+      margin-right: 2px;
+    }
+    .colorPicker > .colorInput {
+      flex: 0px 3 3;
+      margin-left: 10px;
+    }
   </style>
 </head>
+
 <body>
   <div id="main">
     <div id="container">
+      <h4>Method I: Integration of CIE Color Matching Functions</h4>
       <div id="absorbed"></div>
       <div id="perceivedIntegrated"></div>
+      <h4>Method II: Piecewise Linear Interpolation</h4>
       <div id="perceivedInterpolated"></div>
-      <div id="plotContainer"></div>
+      <div id="plotContainer">
+        <svg></svg>
+        <svg></svg>
+      </div>
     </div>
     <div id="controls">
+      <h4>Method I Controls</h4>
       <input
         id="slider"
         type="range"
         min="1"
-        max="1000"
-        value="1"
+        max="500"
+        value="75"
         style="margin-right: 10px"
       />
+      <h4>Method II Controls</h4>
+      <h5>Color Space</h5>
       <div id="colorSpaces"></div>
-      <div id="colorPickerGroup"></div>
+      <h5>Color Stops</h5>
       <div>
         <button id="addBtn">+</button><button id="removeBtn">-</button
-        ><button id="preset1">YRMBC</button><button id="preset2">YMC</button>
+        ><button id="presetBtn1">YRMBC</button
+        ><button id="presetBtn2">YMC</button>
       </div>
+      <div id="colorPickerGroup"></div>
     </div>
     <template id="colorPickerTemplate">
       <div class="colorPicker">
-        <input type="number" />
-        <input type="color" />
+        <input type="number" class="lambdaInput" />
+        <span>nm</span>
+        <input type="color" class="colorInput" />
       </div>
     </template>
+    <svg width="0" height="0">
+      <defs>
+        <marker
+          id="marker1"
+          viewBox="0 0 1 3"
+          refX="1"
+          refY="1.5"
+          markerWidth="4"
+          markerHeight="4"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 0 L 1 1.5 L 0 3 z" fill="#cf3759"></path>
+        </marker>
+        <marker
+          id="marker2"
+          viewBox="0 0 1 3"
+          refX="1"
+          refY="1.5"
+          markerWidth="4"
+          markerHeight="4"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 0 L 1 1.5 L 0 3 z" fill="#4771b2"></path>
+        </marker>
+      </defs>
+    </svg>
   </div>
+
   <script type="module">
     import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
-    const LAMBDA_RANGE_MIN = 300;
-    const LAMBDA_RANGE_MAX = 800;
-    const VISIBLE_MIN = 380;
-    const VISIBLE_MAX = 700;
-
-    let INTERPOLATOR = d3.interpolate;
-
-    // METHOD I
-
-    let sigma = 1;
-    function absorption(wave, lambdaMax) {
-      return Math.exp(-((wave - lambdaMax) ** 2) / sigma ** 2);
-    }
-
-    function x(lambda) {
-      const t1 = (lambda - 442.0) * (lambda < 442.0 ? 0.0624 : 0.0374);
-      const t2 = (lambda - 599.8) * (lambda < 599.8 ? 0.0264 : 0.0323);
-      const t3 = (lambda - 501.1) * (lambda < 501.1 ? 0.049 : 0.0382);
-      return (
-        0.362 * Math.exp(-0.5 * t1 * t1) +
-        1.056 * Math.exp(-0.5 * t2 * t2) -
-        0.065 * Math.exp(-0.5 * t3 * t3)
-      );
-    }
-    function y(lambda) {
-      const t1 = (lambda - 568.8) * (lambda < 568.8 ? 0.0213 : 0.0247);
-      const t2 = (lambda - 530.9) * (lambda < 530.9 ? 0.0613 : 0.0322);
-      return (
-        0.821 * Math.exp(-0.5 * t1 * t1) + 0.286 * Math.exp(-0.5 * t2 * t2)
-      );
-    }
-    function z(lambda) {
-      const t1 = (lambda - 437.0) * (lambda < 437.0 ? 0.0845 : 0.0278);
-      const t2 = (lambda - 459.0) * (lambda < 459.0 ? 0.0385 : 0.0725);
-      return (
-        1.217 * Math.exp(-0.5 * t1 * t1) + 0.681 * Math.exp(-0.5 * t2 * t2)
-      );
-    }
-
-    // XYZ TO RGB
-    function XYZ2RGB({ X, Y, Z }) {
-      const R = 3.2404542 * X - 1.5371385 * Y - 0.4985314 * Z;
-      const G = -0.969266 * X + 1.8760108 * Y + 0.041556 * Z;
-      const B = 0.0556434 * X - 0.2040259 * Y + 1.0572252 * Z;
-      return d3.rgb(R * 255, G * 255, B * 255);
-    }
-
-    // XYZ to LAB
-    const delta = 6 / 29;
-    const f = (t) =>
-      t > delta ** 3 ? t ** (1 / 3) : t / (3 * delta ** 2) + 4 / 29;
-
-    const Xn = 95.0489;
-    const Yn = 100;
-    const Zn = 108.884;
-
-    function XYZ2LAB({ X, Y, Z }) {
-      const L = 116 * (Y / Yn) - 16;
-      const a = 500 * (f(X / Xn) - f(Y / Yn));
-      const b = 200 * (f(Y / Yn) - f(Z / Zn));
-      return { L, a, b };
-    }
-
-    function integrate(t) {
-      let X = 0;
-      let Y = 0;
-      let Z = 0;
-      let YN = 0;
-      for (let lambda = 400; lambda < 780; ++lambda) {
-        X += x(lambda) * (1 - absorption(lambda, t));
-        Y += y(lambda) * (1 - absorption(lambda, t));
-        Z += z(lambda) * (1 - absorption(lambda, t));
-        YN += y(lambda);
-      }
-      return { X: X / YN, Y: Y / YN, Z: Z / YN };
-    }
-
-    // METHOD II
-
-    const interpolate = (ColorStops) => (lambdaMax) => {
-      let prev = null;
-      let next = null;
-      for (const cur of ColorStops) {
-        if (cur.peak <= lambdaMax && (!prev || cur.peak > prev.peak)) {
-          prev = cur;
-        }
-        if (cur.peak >= lambdaMax && (!next || cur.peak < next.peak)) {
-          next = cur;
-        }
-      }
-
-      const color1 = d3.color(prev?.name ?? "#eeeeee");
-      const color2 = d3.color(next?.name ?? "#eeeeee");
-      const interpolator = INTERPOLATOR(color1, color2);
-
-      const lambda1 = prev?.peak ?? VISIBLE_MIN;
-      const lambda2 = next?.peak ?? VISIBLE_MAX;
-      const t = Math.min(
-        1,
-        Math.max(0, (lambdaMax - lambda1) / (lambda2 - lambda1))
-      );
-
-      return d3.color(interpolator(t));
-    };
-
-    const lambdas = Array(LAMBDA_RANGE_MAX - LAMBDA_RANGE_MIN + 1)
-      .fill(0)
-      .map((_, i) => LAMBDA_RANGE_MIN + i);
-
-    // plots
-    const width = 500;
-    const height = 500;
-    const marginTop = 40;
-    const marginRight = 40;
-    const marginBottom = 40;
-    const marginLeft = 40;
-
-    const markerSize = 8;
-    const strokeWidth = 2;
-    const color1 = "#cf3759";
-    const color2 = "#4771b2";
-
-    function render() {
-      const integrated = lambdas.map((l) => XYZ2RGB(integrate(l)));
-
-      const ColorStops = [...colorPickerGroup.children]
-        .map((el) => ({
-          peak: +el.children[0].value,
-          name: el.children[1].value,
-        }))
-        .sort((a, b) => a.peak - b.peak);
-
-      const interpolated = lambdas.map(interpolate(ColorStops));
-
-      function populate(container, count) {
-        if (!container.childElementCount) {
-          while (count--) {
-            const el = document.createElement("div");
-            el.style.height = "100px";
-            el.style.width = "2px";
-            el.style.display = "inline-block";
-            container.append(el);
-          }
-        }
-      }
-
-      populate(absorbed, integrated.length);
-
-      for (const [i, color] of integrated.entries()) {
-        const { r, g, b } = d3.rgb(color);
-        const el = absorbed.children[i];
-        el.style.backgroundColor = `rgb(${255 - r}, ${255 - g}, ${255 - b})`;
-      }
-
-      populate(perceivedIntegrated, integrated.length);
-
-      for (const [i, color] of integrated.entries()) {
-        const { r, g, b } = d3.rgb(color);
-        const el = perceivedIntegrated.children[i];
-        el.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
-      }
-
-      populate(perceivedInterpolated, interpolated.length);
-
-      for (const [i, color] of interpolated.entries()) {
-        const { r, g, b } = d3.rgb(color);
-        const el = perceivedInterpolated.children[i];
-        el.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
-      }
-
-      {
-        // defs
-        const svg = d3.create("svg").attr("width", 0).attr("height", 0);
-        document.body.append(svg.node());
-
-        const w = 3;
-        const h = 1;
-        svg
-          .append("defs")
-          .append("marker")
-          .attr("id", "marker1")
-          .attr("viewBox", [0, 0, h, w])
-          .attr("refX", h)
-          .attr("refY", w / 2)
-          .attr("markerWidth", markerSize)
-          .attr("markerHeight", markerSize)
-          .attr("orient", "auto-start-reverse")
-          .append("path")
-          .attr("d", `M 0 0 L ${h} ${w / 2} L 0 ${w} z `)
-          .attr("fill", color1);
-
-        svg
-          .append("defs")
-          .append("marker")
-          .attr("id", "marker2")
-          .attr("viewBox", [0, 0, h, w])
-          .attr("refX", h)
-          .attr("refY", w / 2)
-          .attr("markerWidth", markerSize)
-          .attr("markerHeight", markerSize)
-          .attr("orient", "auto-start-reverse")
-          .append("path")
-          .attr("d", `M 0 0 L ${h} ${w / 2} L 0 ${w} z `)
-          .attr("fill", color2);
-      }
-
-      const visibleLamdas = Array(VISIBLE_MAX - VISIBLE_MIN + 1)
-        .fill(0)
-        .map((_, i) => VISIBLE_MIN + i);
-      const integratedVisible = visibleLamdas.map((l) => XYZ2RGB(integrate(l)));
-      const interpolatedVisible = visibleLamdas.map(interpolate(ColorStops));
-
-      plotContainer.innerHTML = "";
-
-      // LAB
-      plot(
-        plotContainer,
-        [-128, 127],
-        [-128, 127],
-        interpolatedVisible
-          .map((c) => d3.lab(c))
-          .map(({ a, b }) => [a || 0, b || 0]),
-        integratedVisible
-          .map((c) => d3.lab(c))
-          .map(({ a, b }) => [a || 0, b || 0]),
-        "a* (green-red)",
-        "b* (blue-yellow)"
-      );
-
-      // HCL
-      plot(
-        plotContainer,
-        [-210, 150],
-        [0, 128],
-        interpolatedVisible
-          .map((c) => d3.hcl(c))
-          .map(({ h, c }) => [normalize(h || 0), c || 0]),
-        integratedVisible
-          .map((c) => d3.hcl(c))
-          .map(({ h, c }) => [normalize(h || 0), c || 0]),
-        "h (hue)",
-        "c (chroma)"
-      );
-
-      function normalize(h) {
-        return ((h + 210) % 360) - 210;
-      }
-
-      function plot(root, domainX, domainY, data1, data2, titleX, titleY) {
-        const x = d3
-          .scaleLinear()
-          .domain(domainX)
-          .range([marginLeft, width - marginRight]);
-
-        const y = d3
-          .scaleLinear()
-          .domain(domainY)
-          .range([height - marginBottom, marginTop]);
-
-        const line = d3.line(
-          (d) => x(d[0]),
-          (d) => y(d[1])
-        );
-
-        const svg = d3
-          .create("svg")
-          .attr("width", width)
-          .attr("height", height);
-
-        svg
-          .append("g")
-          .attr("transform", `translate(0,${height - marginBottom})`)
-          .call(d3.axisBottom(x));
-
-        svg
-          .append("g")
-          .attr("transform", `translate(${marginLeft},0)`)
-          .call(d3.axisLeft(y));
-
-        svg
-          .append("text")
-          .attr("text-anchor", "end")
-          .attr("x", width - marginRight)
-          .attr("y", height - 10)
-          .text(titleX);
-
-        svg
-          .append("text")
-          .attr("text-anchor", "end")
-          .attr("transform", "rotate(-90)")
-          .attr("y", marginLeft - 30)
-          .attr("x", -marginTop)
-          .text(titleY);
-
-        plotLine(data2, color2, "marker2");
-        plotLine(data1, color1, "marker1");
-
-        function plotLine(data, color, markerId, threshold = 0.2) {
-          data = data.filter((_, i) => i % 3 == 0);
-          const segments = [];
-          {
-            let j = 0;
-            for (let i = 1; i < data.length; ++i) {
-              if (
-                Math.abs(data[i][0] - data[i - 1][0]) >
-                  threshold * (domainX[1] - domainX[0]) ||
-                Math.abs(data2[i][1] - data2[i - 1][1]) >
-                  threshold * (domainY[1] - domainY[0])
-              ) {
-                segments.push(data.slice(j, i));
-                j = i;
-              }
-            }
-            if (j < data.length) {
-              segments.push(data.slice(j));
-            }
-          }
-          segments.forEach((segment) => {
-            svg
-              .append("path")
-              .attr("d", line(segment))
-              .attr("fill", "none")
-              .attr("stroke", color)
-              .attr("stroke-width", strokeWidth)
-              .attr("marker-mid", `url(#${markerId})`);
-          });
-        }
-
-        root.append(svg.node());
-      }
-    }
-
-    slider.onchange = (e) => {
-      e.target.value = Math.max(e.target.value, 1);
-      sigma = Number(e.target.value);
-      render();
-    };
-    slider.oninput = (e) => {
-      e.target.value = Math.max(e.target.value, 1);
-      sigma = Number(e.target.value);
-      render();
-    };
+    import { setSigma, integrate } from "./integrate.js";
+    import { setInterpolator, interpolate } from "./interpolate.js";
+    import { repeat, normalize, toLAB, toLCh } from "./utils.js";
+    import { plot } from "./plot.js";
 
     const interpolators = [
       { name: "RGB", f: d3.interpolateRgb },
@@ -407,34 +125,6 @@
       { name: "LAB", f: d3.interpolateLab },
       { name: "LCH", f: d3.interpolateHcl },
     ];
-
-    interpolators.forEach((interp) => {
-      const button = document.createElement("button");
-      button.textContent = interp.name;
-      button.onclick = () => {
-        [...colorSpaces.children].forEach((el) => (el.disabled = false));
-        button.disabled = true;
-        INTERPOLATOR = interp.f;
-        render();
-      };
-      colorSpaces.append(button);
-    });
-
-    document.querySelectorAll(".colorPicker").forEach((el) => {
-      el.children[0].oninput = el.children[1].oninput = render;
-    });
-
-    addBtn.onclick = () => {
-      const el = colorPickerTemplate.content.children[0].cloneNode(true);
-      el.children[0].oninput = el.children[1].oninput = render;
-      colorPickerGroup.append(el);
-      render();
-    };
-
-    removeBtn.onclick = () => {
-      colorPickerGroup.querySelector(".colorPicker:last-child").remove();
-      render();
-    };
 
     const YRMBC = [
       [450, "#FFFF00"],
@@ -450,22 +140,136 @@
       [625, "#00FFFF"],
     ];
 
+    const LAMBDA_RANGE_MIN = 300;
+    const LAMBDA_RANGE_MAX = 800;
+
+    const lambdas = repeat(
+      LAMBDA_RANGE_MAX - LAMBDA_RANGE_MIN + 1,
+      (_, i) => LAMBDA_RANGE_MIN + i
+    );
+
+    slider.oninput = (e) => {
+      e.target.value = Math.max(e.target.value, 1);
+      setSigma(Number(e.target.value));
+      render();
+    };
+
+    interpolators.forEach((interp) => {
+      const button = document.createElement("button");
+      button.textContent = interp.name;
+      button.onclick = () => {
+        [...colorSpaces.children].forEach((el) => (el.disabled = false));
+        button.disabled = true;
+        setInterpolator(interp.f);
+        render();
+      };
+      if (interp.name == "RGB") {
+        button.disabled = true;
+      }
+      colorSpaces.append(button);
+    });
+
+    colorPickerGroup.oninput = render;
+
+    presetBtn1.onclick = () => {
+      presetBtn1.disabled = true;
+      presetBtn2.disabled = false;
+      usePreset(YRMBC);
+    };
+    presetBtn2.onclick = () => {
+      presetBtn1.disabled = false;
+      presetBtn2.disabled = true;
+      usePreset(YMC);
+    };
+
+    addBtn.onclick = () => {
+      colorPickerGroup.append(
+        colorPickerTemplate.content.children[0].cloneNode(true)
+      );
+      render();
+    };
+
+    removeBtn.onclick = () => {
+      colorPickerGroup.querySelector(".colorPicker:last-child").remove();
+      render();
+    };
+
     function usePreset(preset) {
       colorPickerGroup.innerHTML = "";
-      preset.forEach(([peak, name]) => {
+      preset.forEach(([peak, color]) => {
         const el = colorPickerTemplate.content.children[0].cloneNode(true);
-        const [input1, input2] = el.children;
-        input1.value = peak;
-        input2.value = name;
-        input1.oninput = input2.oninput = render;
+        el.querySelector(".lambdaInput").value = peak;
+        el.querySelector(".colorInput").value = color;
         colorPickerGroup.append(el);
         render();
       });
     }
 
-    preset1.onclick = () => usePreset(YRMBC);
-    preset2.onclick = () => usePreset(YMC);
+    for (const container of [
+      absorbed,
+      perceivedIntegrated,
+      perceivedInterpolated,
+    ]) {
+      let n = lambdas.length;
+      while (n--) {
+        const el = document.createElement("div");
+        el.className = "colorStep";
 
+        container.append(el);
+      }
+    }
+
+    function render() {
+      const ColorStops = [...colorPickerGroup.children]
+        .map((el) => ({
+          peak: +el.querySelector(".lambdaInput").value,
+          name: el.querySelector(".colorInput").value,
+        }))
+        .sort((a, b) => a.peak - b.peak);
+
+      const integrated = lambdas.map((l) => integrate(l));
+      const interpolated = lambdas.map(interpolate(ColorStops));
+
+      for (const [i, color] of integrated.entries()) {
+        const { r, g, b } = d3.rgb(color);
+        const el = absorbed.children[i];
+        el.style.backgroundColor = `rgb(${255 - r}, ${255 - g}, ${255 - b})`;
+      }
+
+      for (const [i, color] of integrated.entries()) {
+        const { r, g, b } = d3.rgb(color);
+        const el = perceivedIntegrated.children[i];
+        el.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+      }
+
+      for (const [i, color] of interpolated.entries()) {
+        const { r, g, b } = d3.rgb(color);
+        const el = perceivedInterpolated.children[i];
+        el.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+      }
+
+      plot(
+        plotContainer.children[0],
+        [-128, 127],
+        [-128, 127],
+        interpolated.map(toLAB),
+        integrated.map(toLAB),
+        "a* (green-red)",
+        "b* (blue-yellow)"
+      );
+
+      plot(
+        plotContainer.children[1],
+        [-210, 150],
+        [0, 128],
+        interpolated.map(toLCh),
+        integrated.map(toLCh),
+        "h (hue)",
+        "c (chroma)"
+      );
+    }
+
+    window.render = render;
     render();
   </script>
 </body>
