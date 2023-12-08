@@ -1,5 +1,8 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
+export function clamp(v, a, b) {
+  return Math.min(Math.max(v, a), b);
+}
 export function repeat(n, f) {
   return Array(n).fill(0).map(f);
 }

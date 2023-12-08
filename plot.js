@@ -1,4 +1,5 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+import { clamp } from "./utils.js";
 
 const width = 500;
 const height = 500;
@@ -8,8 +9,8 @@ const marginBottom = 40;
 const marginLeft = 40;
 const strokeWidth = 2;
 
-const color1 = "#cf3759";
-const color2 = "#4771b2";
+const color1 = "black";
+const color2 = "white";
 
 export function plot(root, domainX, domainY, data1, data2, titleX, titleY) {
   const x = d3
@@ -28,7 +29,7 @@ export function plot(root, domainX, domainY, data1, data2, titleX, titleY) {
   );
 
   function plotCurve(data, color, markerId, threshold = 0.3) {
-    data = data.filter((_, i) => i % 3 == 0);
+    data = data.filter((_, i) => i % 2 == 0);
 
     const segments = [];
     {
@@ -53,7 +54,7 @@ export function plot(root, domainX, domainY, data1, data2, titleX, titleY) {
         .append("path")
         .attr("d", line(segment))
         .attr("fill", "none")
-        .attr("stroke", color)
+        .attr("stroke", "none")
         .attr("stroke-width", strokeWidth)
         .attr("marker-mid", `url(#${markerId})`);
     });
@@ -90,4 +91,22 @@ export function plot(root, domainX, domainY, data1, data2, titleX, titleY) {
   plotCurve(data1, color1, "marker1");
 
   root.parentElement.replaceChild(svg.node(), root);
+}
+
+export function drawBackground(canvas, xRange, yRange, color) {
+  canvas.width = xRange[1] - xRange[0] + 1;
+  canvas.height = yRange[1] - yRange[0] + 1;
+  const ctx = canvas.getContext("2d");
+  const imageData = new ImageData(canvas.width, canvas.height);
+  for (let y = yRange[1]; y >= yRange[0]; --y) {
+    for (let x = xRange[0]; x <= xRange[1]; ++x) {
+      const i = 4 * ((yRange[1] - y) * canvas.width + (x - xRange[0]));
+      const { r, g, b } = d3.rgb(color(x, y));
+      imageData.data[i + 0] = clamp(r | 0, 0, 255);
+      imageData.data[i + 1] = clamp(g | 0, 0, 255);
+      imageData.data[i + 2] = clamp(b | 0, 0, 255);
+      imageData.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
 }

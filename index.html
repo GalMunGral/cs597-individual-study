@@ -15,6 +15,18 @@
       margin-top: 20px;
       flex: 0px 1 1;
     }
+    #plotContainer > div {
+      display: inline-block;
+      position: relative;
+    }
+    #plotContainer canvas {
+      position: absolute;
+      top: 40px;
+      left: 40px;
+      width: 420px;
+      height: 420px;
+      z-index: -1;
+    }
     input {
       display: block;
       width: 100%;
@@ -51,8 +63,14 @@
       <h4>Method II: Piecewise Linear Interpolation</h4>
       <div id="perceivedInterpolated"></div>
       <div id="plotContainer">
-        <svg></svg>
-        <svg></svg>
+        <div class="lab">
+          <svg></svg>
+          <canvas></canvas>
+        </div>
+        <div class="lch">
+          <svg></svg>
+          <canvas></canvas>
+        </div>
       </div>
     </div>
     <div id="controls">
@@ -87,25 +105,25 @@
       <defs>
         <marker
           id="marker1"
-          viewBox="0 0 1 3"
+          viewBox="0 0 1 2"
           refX="1"
-          refY="1.5"
+          refY="1"
           markerWidth="4"
           markerHeight="4"
           orient="auto-start-reverse"
         >
-          <path d="M 0 0 L 1 1.5 L 0 3 z" fill="#cf3759"></path>
+          <path d="M 0 0 L 1 1 L 0 2 z" fill="black"></path>
         </marker>
         <marker
           id="marker2"
-          viewBox="0 0 1 3"
+          viewBox="0 0 1 2"
           refX="1"
-          refY="1.5"
+          refY="1"
           markerWidth="4"
           markerHeight="4"
           orient="auto-start-reverse"
         >
-          <path d="M 0 0 L 1 1.5 L 0 3 z" fill="#4771b2"></path>
+          <path d="M 0 0 L 1 1 L 0 2 z" fill="white"></path>
         </marker>
       </defs>
     </svg>
@@ -117,7 +135,7 @@
     import { setSigma, integrate } from "./integrate.js";
     import { setInterpolator, interpolate } from "./interpolate.js";
     import { repeat, normalize, toLAB, toLCh } from "./utils.js";
-    import { plot } from "./plot.js";
+    import { plot, drawBackground } from "./plot.js";
 
     const interpolators = [
       { name: "RGB", f: d3.interpolateRgb },
@@ -219,6 +237,20 @@
       }
     }
 
+    drawBackground(
+      plotContainer.querySelector(".lab > canvas"),
+      [-128, 127],
+      [-128, 127],
+      (a, b) => d3.lab(70, a, b)
+    );
+
+    drawBackground(
+      plotContainer.querySelector(".lch > canvas"),
+      [-210, 150],
+      [0, 230],
+      (h, c) => d3.lch(70, c, h)
+    );
+
     function render() {
       const ColorStops = [...colorPickerGroup.children]
         .map((el) => ({
@@ -249,7 +281,7 @@
       }
 
       plot(
-        plotContainer.children[0],
+        plotContainer.querySelector(".lab > svg"),
         [-128, 127],
         [-128, 127],
         interpolated.map(toLAB),
@@ -259,9 +291,9 @@
       );
 
       plot(
-        plotContainer.children[1],
+        plotContainer.querySelector(".lch > svg"),
         [-210, 150],
-        [0, 128],
+        [0, 230],
         interpolated.map(toLCh),
         integrated.map(toLCh),
         "h (hue)",
