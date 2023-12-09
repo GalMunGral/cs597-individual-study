@@ -3,10 +3,10 @@ import { clamp } from "./utils.js";
 
 const width = 500;
 const height = 500;
-const marginTop = 40;
-const marginRight = 40;
-const marginBottom = 40;
-const marginLeft = 40;
+const marginTop = 50;
+const marginRight = 50;
+const marginBottom = 50;
+const marginLeft = 50;
 const strokeWidth = 2;
 
 const color1 = "black";

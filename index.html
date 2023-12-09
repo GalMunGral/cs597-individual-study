@@ -21,10 +21,10 @@
     }
     #plotContainer canvas {
       position: absolute;
-      top: 40px;
-      left: 40px;
-      width: 420px;
-      height: 420px;
+      top: 50px;
+      left: 50px;
+      width: 400px;
+      height: 400px;
       z-index: -1;
     }
     input {
@@ -57,10 +57,10 @@
 <body>
   <div id="main">
     <div id="container">
-      <h4>Method I: Integration of CIE Color Matching Functions</h4>
+      <h4>Method 1: Integration of Color Matching Functions</h4>
       <div id="absorbed"></div>
       <div id="perceivedIntegrated"></div>
-      <h4>Method II: Piecewise Linear Interpolation</h4>
+      <h4>Method 2: Piecewise Linear Interpolation</h4>
       <div id="perceivedInterpolated"></div>
       <div id="plotContainer">
         <div class="lab">
@@ -74,16 +74,17 @@
       </div>
     </div>
     <div id="controls">
-      <h4>Method I Controls</h4>
+      <h4>Method 1</h4>
+      <h5>Standard Deviation</h5>
       <input
-        id="slider"
+        id="sigmaControl"
         type="range"
         min="1"
         max="500"
         value="75"
         style="margin-right: 10px"
       />
-      <h4>Method II Controls</h4>
+      <h4>Method 2</h4>
       <h5>Color Space</h5>
       <div id="colorSpaces"></div>
       <h5>Color Stops</h5>
@@ -93,6 +94,17 @@
         ><button id="presetBtn2">YMC</button>
       </div>
       <div id="colorPickerGroup"></div>
+      <h4>Plots</h4>
+      <h5>Lightness (L)</h5>
+      <input
+        id="lightnessControl"
+        type="range"
+        min="1"
+        max="100"
+        value="70"
+        style="margin-right: 10px"
+        oninput="render()"
+      />
     </div>
     <template id="colorPickerTemplate">
       <div class="colorPicker">
@@ -166,7 +178,7 @@
       (_, i) => LAMBDA_RANGE_MIN + i
     );
 
-    slider.oninput = (e) => {
+    sigmaControl.oninput = (e) => {
       e.target.value = Math.max(e.target.value, 1);
       setSigma(Number(e.target.value));
       render();
@@ -223,6 +235,8 @@
       });
     }
 
+    let lightness = 0;
+
     for (const container of [
       absorbed,
       perceivedIntegrated,
@@ -236,20 +250,6 @@
         container.append(el);
       }
     }
-
-    drawBackground(
-      plotContainer.querySelector(".lab > canvas"),
-      [-128, 127],
-      [-128, 127],
-      (a, b) => d3.lab(70, a, b)
-    );
-
-    drawBackground(
-      plotContainer.querySelector(".lch > canvas"),
-      [-210, 150],
-      [0, 230],
-      (h, c) => d3.lch(70, c, h)
-    );
 
     function render() {
       const ColorStops = [...colorPickerGroup.children]
@@ -280,6 +280,23 @@
         el.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
       }
 
+      if (lightnessControl.value != lightness) {
+        lightness = lightnessControl.value;
+        drawBackground(
+          plotContainer.querySelector(".lab > canvas"),
+          [-128, 127],
+          [-128, 127],
+          (a, b) => d3.lab(lightness, a, b)
+        );
+
+        drawBackground(
+          plotContainer.querySelector(".lch > canvas"),
+          [-210, 150],
+          [0, 230],
+          (h, c) => d3.lch(lightness, c, h)
+        );
+      }
+
       plot(
         plotContainer.querySelector(".lab > svg"),
         [-128, 127],
@@ -297,7 +314,7 @@
         interpolated.map(toLCh),
         integrated.map(toLCh),
         "h (hue)",
-        "c (chroma)"
+        "C (chroma)"
       );
     }
 
