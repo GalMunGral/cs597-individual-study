@@ -27,8 +27,7 @@
       height: 400px;
       z-index: -1;
     }
-    input {
-      display: block;
+    [type="range"] {
       width: 100%;
     }
     button {
@@ -95,13 +94,23 @@
       </div>
       <div id="colorPickerGroup"></div>
       <h4>Plots</h4>
+      <div>
+        <input type="checkbox" id="checkbox1" oninput="render()" /><label
+          >Method 1</label
+        >
+      </div>
+      <div>
+        <input type="checkbox" id="checkbox2" oninput="render()" /><label
+          >Method 2</label
+        >
+      </div>
       <h5>Lightness (L)</h5>
       <input
         id="lightnessControl"
         type="range"
         min="1"
         max="100"
-        value="70"
+        value="50"
         style="margin-right: 10px"
         oninput="render()"
       />
@@ -124,7 +133,7 @@
           markerHeight="4"
           orient="auto-start-reverse"
         >
-          <path d="M 0 0 L 1 1 L 0 2 z" fill="black"></path>
+          <path d="M 0 0 L 1 1 L 0 2 z" fill="gray"></path>
         </marker>
         <marker
           id="marker2"
@@ -286,14 +295,26 @@
           plotContainer.querySelector(".lab > canvas"),
           [-128, 127],
           [-128, 127],
-          (a, b) => d3.lab(lightness, a, b)
+          (a, b) => d3.lab(lightness, a, b),
+          (x, y) => {
+            const { r, g, b } = d3.rgb(d3.lab(lightness, x, y));
+            return (
+              r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255
+            );
+          }
         );
 
         drawBackground(
           plotContainer.querySelector(".lch > canvas"),
           [-210, 150],
           [0, 230],
-          (h, c) => d3.lch(lightness, c, h)
+          (h, c) => d3.lch(lightness, c, h),
+          (x, y) => {
+            const { r, g, b } = d3.rgb(d3.lch(lightness, y, x));
+            return (
+              r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255
+            );
+          }
         );
       }
 
@@ -301,8 +322,8 @@
         plotContainer.querySelector(".lab > svg"),
         [-128, 127],
         [-128, 127],
-        interpolated.map(toLAB),
-        integrated.map(toLAB),
+        checkbox1.checked ? integrated.map(toLAB) : [],
+        checkbox2.checked ? interpolated.map(toLAB) : [],
         "a* (green-red)",
         "b* (blue-yellow)"
       );
@@ -311,8 +332,8 @@
         plotContainer.querySelector(".lch > svg"),
         [-210, 150],
         [0, 230],
-        interpolated.map(toLCh),
-        integrated.map(toLCh),
+        checkbox1.checked ? integrated.map(toLCh) : [],
+        checkbox2.checked ? interpolated.map(toLCh) : [],
         "h (hue)",
         "C (chroma)"
       );

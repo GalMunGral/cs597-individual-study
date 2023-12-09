@@ -9,9 +9,6 @@ const marginBottom = 50;
 const marginLeft = 50;
 const strokeWidth = 2;
 
-const color1 = "black";
-const color2 = "white";
-
 export function plot(root, domainX, domainY, data1, data2, titleX, titleY) {
   const x = d3
     .scaleLinear()
@@ -28,8 +25,9 @@ export function plot(root, domainX, domainY, data1, data2, titleX, titleY) {
     (d) => y(d[1])
   );
 
-  function plotCurve(data, color, markerId, threshold = 0.3) {
+  function plotCurve(data, markerId, threshold = 0.3) {
     data = data.filter((_, i) => i % 2 == 0);
+    if (!data.length) return;
 
     const segments = [];
     {
@@ -38,7 +36,7 @@ export function plot(root, domainX, domainY, data1, data2, titleX, titleY) {
         if (
           Math.abs(data[i][0] - data[i - 1][0]) >
             threshold * (domainX[1] - domainX[0]) ||
-          Math.abs(data2[i][1] - data2[i - 1][1]) >
+          Math.abs(data[i][1] - data[i - 1][1]) >
             threshold * (domainY[1] - domainY[0])
         ) {
           segments.push(data.slice(j, i));
@@ -87,13 +85,13 @@ export function plot(root, domainX, domainY, data1, data2, titleX, titleY) {
     .attr("x", -marginTop)
     .text(titleY);
 
-  plotCurve(data2, color2, "marker2");
-  plotCurve(data1, color1, "marker1");
+  plotCurve(data1, "marker1");
+  plotCurve(data2, "marker2");
 
   root.parentElement.replaceChild(svg.node(), root);
 }
 
-export function drawBackground(canvas, xRange, yRange, color) {
+export function drawBackground(canvas, xRange, yRange, color, isValid) {
   canvas.width = xRange[1] - xRange[0] + 1;
   canvas.height = yRange[1] - yRange[0] + 1;
   const ctx = canvas.getContext("2d");
@@ -102,9 +100,10 @@ export function drawBackground(canvas, xRange, yRange, color) {
     for (let x = xRange[0]; x <= xRange[1]; ++x) {
       const i = 4 * ((yRange[1] - y) * canvas.width + (x - xRange[0]));
       const { r, g, b } = d3.rgb(color(x, y));
-      imageData.data[i + 0] = clamp(r | 0, 0, 255);
-      imageData.data[i + 1] = clamp(g | 0, 0, 255);
-      imageData.data[i + 2] = clamp(b | 0, 0, 255);
+      const isRGB = isValid(x, y);
+      imageData.data[i + 0] = clamp(r | 0, 0, 255) * (isRGB ? 1 : 0.5);
+      imageData.data[i + 1] = clamp(g | 0, 0, 255) * (isRGB ? 1 : 0.5);
+      imageData.data[i + 2] = clamp(b | 0, 0, 255) * (isRGB ? 1 : 0.5);
       imageData.data[i + 3] = 255;
     }
   }

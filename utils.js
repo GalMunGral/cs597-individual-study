@@ -17,6 +17,6 @@ export function toLAB(color) {
 }
 
 export function toLCh(color) {
-  const { h, c } = d3.hcl(color);
+  const { h, c } = d3.lch(color);
   return [normalize(h || 0, -210), c || 0];
 }
