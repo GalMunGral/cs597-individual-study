@@ -91,20 +91,26 @@ export function plot(root, domainX, domainY, data1, data2, titleX, titleY) {
   root.parentElement.replaceChild(svg.node(), root);
 }
 
+const dpr = 1;
+const imageSize = 256;
+
 export function drawBackground(canvas, xRange, yRange, color, isValid) {
-  canvas.width = xRange[1] - xRange[0] + 1;
-  canvas.height = yRange[1] - yRange[0] + 1;
   const ctx = canvas.getContext("2d");
-  const imageData = new ImageData(canvas.width, canvas.height);
-  for (let y = yRange[1]; y >= yRange[0]; --y) {
-    for (let x = xRange[0]; x <= xRange[1]; ++x) {
-      const i = 4 * ((yRange[1] - y) * canvas.width + (x - xRange[0]));
+  canvas.width = canvas.height = imageSize;
+  const imageData = new ImageData(imageSize, imageSize);
+  const xScale = (xRange[1] - xRange[0]) / (imageSize - 1);
+  const yScale = (yRange[1] - yRange[0]) / (imageSize - 1);
+  for (let i = 0; i < canvas.height; ++i) {
+    for (let j = 0; j < canvas.width; ++j) {
+      const base = 4 * (i * canvas.width + j);
+      const x = xRange[0] + j * xScale;
+      const y = yRange[1] - i * yScale;
       const { r, g, b } = d3.rgb(color(x, y));
       const isRGB = isValid(x, y);
-      imageData.data[i + 0] = clamp(r | 0, 0, 255) * (isRGB ? 1 : 0.5);
-      imageData.data[i + 1] = clamp(g | 0, 0, 255) * (isRGB ? 1 : 0.5);
-      imageData.data[i + 2] = clamp(b | 0, 0, 255) * (isRGB ? 1 : 0.5);
-      imageData.data[i + 3] = 255;
+      imageData.data[base + 0] = clamp(r | 0, 0, 255) * (isRGB ? 1 : 0.5);
+      imageData.data[base + 1] = clamp(g | 0, 0, 255) * (isRGB ? 1 : 0.5);
+      imageData.data[base + 2] = clamp(b | 0, 0, 255) * (isRGB ? 1 : 0.5);
+      imageData.data[base + 3] = 255;
     }
   }
   ctx.putImageData(imageData, 0, 0);
